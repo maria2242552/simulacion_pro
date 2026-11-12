@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador y monitor de red rural</title>
+<style>
+:root{--bg:#faf7f2;--surface:#fff;--ink:#2a2022;--muted:#6f6366;--line:#e2d8cd;--maroon:#8b3a3a;--orange:#e8621a;--gold:#d9a528;--sky:#d5e3ee;--ok:#2f7d4f;--warn:#b7791f;--bad:#b3261e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1719;--surface:#272022;--ink:#f3ebe6;--muted:#b3a5a8;--line:#3b3134;--maroon:#e08a8a;--orange:#ff8a4c;--gold:#e6b93e;--sky:#2c3a47;--ok:#6fcf97;--warn:#f2c14e;--bad:#ff8c84;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1d1719;--surface:#272022;--ink:#f3ebe6;--muted:#b3a5a8;--line:#3b3134;--maroon:#e08a8a;--orange:#ff8a4c;--gold:#e6b93e;--sky:#2c3a47;--ok:#6fcf97;--warn:#f2c14e;--bad:#ff8c84;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1150px;margin:0 auto;padding:0 16px}
+header{border-bottom:4px solid var(--gold);padding:20px 0 14px}
+h1{margin:0;font-size:clamp(1.6rem,4.5vw,2.5rem);line-height:1.1;color:var(--maroon);letter-spacing:-.02em}
+header p{margin:6px 0 0;color:var(--muted);max-width:70ch}
+h2{font-size:1.05rem;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-top:16px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+canvas{display:block;width:100%;border-radius:6px;touch-action:none}
+#map{aspect-ratio:40/24;cursor:crosshair}
+#chart{height:210px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+.hint{font-size:.85rem;color:var(--muted);margin:6px 0 0}
+.status{display:flex;align-items:center;gap:8px;font-size:1.1rem;font-weight:700}
+.status i{width:12px;height:12px;border-radius:50%;flex:none}
+.clock{color:var(--muted);margin:2px 0 10px}
+dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:5px 10px}
+dt{color:var(--muted)}dd{margin:0;font-weight:700;text-align:right}
+.bar{grid-column:1/-1;height:8px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar b{display:block;height:100%}
+#log{list-style:none;margin:0;padding:0;font-size:.88rem;max-height:200px;overflow:auto}
+#log li{padding:4px 0;border-bottom:1px solid var(--line)}
+#log li:last-child{border:0}
+#log time{color:var(--muted);margin-right:6px;font-variant-numeric:tabular-nums}
+.warn{color:var(--warn)}.bad{color:var(--bad)}.ok{color:var(--ok)}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px 24px;margin-top:10px}
+.sl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:.9rem}
+.sl input{grid-column:1/-1;width:100%;accent-color:var(--maroon)}
+.sl output{font-weight:700}
+.tg{display:flex;align-items:center;gap:8px;font-size:.92rem}
+.tg input{width:18px;height:18px;accent-color:var(--maroon)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer}
+button.p{background:var(--maroon);border-color:var(--maroon);color:#fff}
+:root[data-theme="dark"] button.p{color:#1d1719}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.p{color:#1d1719}}
+button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+section{margin-top:16px}
+footer{color:var(--muted);font-size:.85rem;padding:18px 0 28px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>Simulador y monitor de red rural</h1>
+<p>Sede educativa con Starlink, paneles solares, enrutador y punto de acceso exterior. Observa en vivo la cobertura, la energía y las alertas, y prueba fallas.</p>
+</div></header>
+
+<main class="wrap">
+<div class="grid">
+  <div class="card">
+    <h2>Plano de la sede: cobertura Wi-Fi en vivo</h2>
+    <canvas id="map" tabindex="0" aria-label="Mapa de cobertura Wi-Fi de la sede"></canvas>
+    <div class="legend">
+      <span><i style="background:#2f7d4f"></i>Buena (mejor que −67 dBm)</span>
+      <span><i style="background:#d9a528"></i>Aceptable (−75 a −67)</span>
+      <span><i style="background:#e8621a"></i>Débil (−85 a −75)</span>
+      <span><i style="background:#555"></i>Sin señal</span>
+    </div>
+    <p class="hint">Arrastra el enrutador (cuadro) o el AP exterior (triángulo). Toca cualquier punto del plano para medir la señal ahí. Los círculos son estudiantes que se mueven.</p>
+  </div>
+  <div style="display:grid;gap:16px;align-content:start">
+    <div class="card">
+      <div class="status"><i id="dot"></i><span id="stTxt"></span></div>
+      <div class="clock" id="clock"></div>
+      <dl id="kv"></dl>
+    </div>
+    <div class="card"><h2>Alertas</h2><ul id="log"></ul></div>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Últimas 24 horas simuladas</h2>
+  <canvas id="chart" aria-label="Gráfica de generación solar, consumo y batería"></canvas>
+  <div class="legend">
+    <span><i style="background:#d9a528"></i>Generación solar</span>
+    <span><i style="background:#8b3a3a"></i>Consumo</span>
+    <span><i style="background:#2f7d4f"></i>Batería (%)</span>
+    <span><i style="background:#b3261e;opacity:.35"></i>Red caída</span>
+    <span><i style="background:#888;opacity:.35"></i>Apagada por horario</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Controles</h2>
+  <div class="row">
+    <button class="p" id="play">Pausar</button>
+    <button id="reset">Reiniciar</button>
+    <label>Velocidad <select id="speed">
+      <option value=".1">Lenta (6 min por segundo)</option>
+      <option value=".5" selected>Normal (30 min por segundo)</option>
+      <option value="1">Rápida (1 h por segundo)</option>
+      <option value="3">Muy rápida (3 h por segundo)</option></select></label>
+  </div>
+  <div class="ctl" id="ctl"></div>
+  <div class="ctl" id="tg"></div>
+</section>
+</main>
+<footer class="wrap">Prototipo de simulación del proyecto “Falta de conectividad de internet en zonas rurales”. Los valores son supuestos de diseño, no mediciones.</footer>
+
+<script>
+const SW=40,SH=24,NX=100,NY=60;
+const WALLS=[[6,5,13,5],[15,5,26,5],[6,17,26,17],[6,5,6,17],[26,5,26,17],[16,5,16,9],[16,11,16,17]];
+const COL=["#555","#e8621a","#d9a528","#2f7d4f"],RGB=[[85,85,85],[232,98,26],[217,165,40],[47,125,79]];
+const S={pr:20,pa:23,mu:8,wp:1600,kwh:5,speed:.5,falla:false,storm:false,rout:false,night:true,run:true};
+const tx=[{x:10,y:11,p:20,n:"Enrutador",on:true},{x:28,y:11,p:23,n:"AP exterior",on:true}];
+const $=id=>document.getElementById(id);
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const ZONES=[[7,15.5,6,16,10],[16.5,25,6,16,10],[28,38,3,21,6]];
+const devs=[];ZONES.forEach(z=>{for(let i=0;i<z[4];i++)devs.push({x:rnd(z[0],z[1]),y:rnd(z[2],z[3]),z})});
+let H=7,E=S.kwh*500,sol=0,load=0,st=0,soc=50,probe=null,drag=null;
+let hist=[],lastSamp=-9,prevSt=0,prevBand=2,alerts=[];
+let grid=new Float32Array(NX*NY),key="",covIn=0,covOut=0,conn=0,devR=[];
+
+/* ---------- modelo de señal ---------- */
+const ccw=(ax,ay,bx,by,cx,cy)=>(cy-ay)*(bx-ax)>(by-ay)*(cx-ax);
+function cross(ax,ay,bx,by){let n=0;for(const w of WALLS){if(ccw(ax,ay,w[0],w[1],w[2],w[3])!==ccw(bx,by,w[0],w[1],w[2],w[3])&&ccw(ax,ay,bx,by,w[0],w[1])!==ccw(ax,ay,bx,by,w[2],w[3]))n++}return n}
+function rssi(x,y){let b=-120;for(const t of tx){if(!t.on)continue;const d=Math.max(Math.hypot(x-t.x,y-t.y),1);const v=t.p-(46+34*Math.log10(d))-S.mu*cross(t.x,t.y,x,y);if(v>b)b=v}return b}
+const cls=v=>v>=-67?3:v>=-75?2:v>=-85?1:0;
+
+/* ---------- modelo de energía ---------- */
+const sunW=h=>h>6&&h<18?Math.sin(Math.PI*(h-6)/12)*S.wp*.75*(S.storm?.25:1):0;
+function power(dh){
+  const h=((H%24)+24)%24,off=S.night&&(h<6||h>=18),cap=S.kwh*1000;
+  sol=sunW(h);load=off?0:80+(h>=8&&h<14?270:0);
+  const n=sol-load;
+  if(dh>0){E=Math.min(cap,E+n*dh*(n>0?.9:1));if(E<0)E=0}
+  st=off?1:(E<=0&&n<0?2:0);soc=E/cap*100;
+}
+
+/* ---------- registro de eventos ---------- */
+const hhmm=h=>{h=((h%24)+24)%24;return String(Math.floor(h)).padStart(2,"0")+":"+String(Math.floor(h%1*60)).padStart(2,"0")};
+function log(msg,k){alerts.unshift({t:H,msg,k:k||""});alerts.length=Math.min(alerts.length,30);renderLog()}
+function renderLog(){$("log").innerHTML=alerts.slice(0,10).map(a=>`<li class="${a.k}"><time>${hhmm(a.t)}</time>${a.msg}</li>`).join("")||"<li>Sin eventos todavía.</li>"}
+
+/* ---------- controles ---------- */
+[["pr","Potencia del enrutador","dBm",10,30,1,20],["pa","Potencia del AP exterior","dBm",10,30,1,23],["mu","Atenuación por muro","dB",2,15,1,8],["wp","Paneles solares","Wp",400,3200,200,1600],["kwh","Batería","kWh",1,10,.5,5]].forEach(([k,l,u,mn,mx,sp,v])=>{
+  $("ctl").insertAdjacentHTML("beforeend",`<label class="sl"><span>${l}</span><output id="o_${k}">${v} ${u}</output><input type="range" id="s_${k}" min="${mn}" max="${mx}" step="${sp}" value="${v}"></label>`);
+  $("s_"+k).addEventListener("input",e=>{const nv=+e.target.value;if(k==="kwh")E=E*nv/S.kwh;S[k]=nv;$("o_"+k).textContent=nv+" "+u});
+});
+$("ctl").insertAdjacentHTML("beforeend",`<label class="sl"><span>Hora del día</span><output id="o_h"></output><input type="range" id="s_h" min="0" max="23.75" step=".25" value="7"></label>`);
+$("s_h").addEventListener("input",e=>{H=Math.floor(H/24)*24+ +e.target.value;lastSamp=-9;hist=[]});
+[["falla","Falla del enlace Starlink","Falla de Starlink: sin internet, el Wi-Fi local sigue",["Enlace Starlink restablecido","ok"]],
+ ["storm","Tormenta: poca luz solar","Tormenta: la generación solar baja al 25 %",["Se despeja el cielo","ok"]],
+ ["rout","Apagar el enrutador principal","Enrutador principal apagado",["Enrutador principal encendido","ok"]],
+ ["night","Apagar la red de 18:00 a 6:00","Red apagada de noche para ahorrar energía",["Red encendida las 24 horas","warn"]]].forEach(([k,l,onMsg,off])=>{
+  $("tg").insertAdjacentHTML("beforeend",`<label class="tg"><input type="checkbox" id="t_${k}" ${S[k]?"checked":""}>${l}</label>`);
+  $("t_"+k).addEventListener("change",e=>{S[k]=e.target.checked;tx[0].on=!S.rout;
+    if(S[k])log(onMsg,k==="night"?"":"bad");else log(off[0],off[1])});
+});
+$("speed").onchange=e=>S.speed=+e.target.value;
+$("play").onclick=()=>{S.run=!S.run;$("play").textContent=S.run?"Pausar":"Reanudar"};
+$("reset").onclick=()=>{H=7;E=S.kwh*500;hist=[];alerts=[];lastSamp=-9;prevBand=2;probe=null;renderLog();log("Simulación reiniciada")};
+
+/* ---------- mapa: arrastrar y medir ---------- */
+const cv=$("map"),cx=cv.getContext("2d"),ch=$("chart"),cc=ch.getContext("2d");
+const heat=document.createElement("canvas");heat.width=NX;heat.height=NY;const hx=heat.getContext("2d");
+const mp=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)/r.width*SW,SH-(e.clientY-r.top)/r.height*SH]};
+cv.addEventListener("pointerdown",e=>{const[x,y]=mp(e);const t=tx.reduce((a,b)=>Math.hypot(a.x-x,a.y-y)<Math.hypot(b.x-x,b.y-y)?a:b);
+  if(Math.hypot(t.x-x,t.y-y)<2.2)drag=t;else probe={x,y};cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",e=>{if(!drag)return;const[x,y]=mp(e);drag.x=Math.min(SW-.5,Math.max(.5,x));drag.y=Math.min(SH-.5,Math.max(.5,y))});
+cv.addEventListener("pointerup",()=>drag=null);
+
+/* ---------- tamaño de lienzos ---------- */
+function fit(c){const r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);c._w=r.width;c._h=r.height;c._d=d}
+addEventListener("resize",()=>{fit(cv);fit(ch)});
+
+/* ---------- cálculo por cuadro ---------- */
+function compute(){
+  tx[0].p=S.pr;tx[1].p=S.pa;tx[0].on=!S.rout;
+  const wu=st===0,k=[tx.map(t=>[t.x,t.y,t.p,t.on]).join(),S.mu,wu].join("|");
+  if(k!==key){key=k;let ci=0,ni=0,co=0,no=0;const id=hx.createImageData(NX,NY);
+    for(let iy=0;iy<NY;iy++)for(let ix=0;ix<NX;ix++){const x=(ix+.5)*SW/NX,y=(iy+.5)*SH/NY,v=wu?rssi(x,y):-120,c=cls(v);grid[iy*NX+ix]=v;
+      const inside=x>6&&x<26&&y>5&&y<17;if(inside){ni++;if(v>=-75)ci++}else{no++;if(v>=-75)co++}
+      const o=((NY-1-iy)*NX+ix)*4,g=RGB[c];id.data[o]=g[0];id.data[o+1]=g[1];id.data[o+2]=g[2];id.data[o+3]=215}
+    hx.putImageData(id,0,0);covIn=ci/ni*100;covOut=co/no*100}
+  conn=0;devR=devs.map(d=>{const v=wu?rssi(d.x,d.y):-120;if(v>=-75)conn++;return v});
+}
+function sample(){
+  if(H<lastSamp)lastSamp=H;
+  if(H-lastSamp>=.1){lastSamp=H;hist.push({t:H,sol,load,soc,st});while(hist.length&&hist[0].t<H-24)hist.shift()}
+  if(st!==prevSt){const m={0:["Red en servicio de nuevo","ok"],1:["Red apagada por horario","warn"],2:["Batería agotada: la red se cayó","bad"]}[st];log(m[0],m[1]);prevSt=st}
+  const band=soc<10?0:soc<20?1:2;
+  if(band<prevBand&&st!==1)log(band===0?"Batería crítica: menos del 10 %":"Batería baja: menos del 20 %",band===0?"bad":"warn");
+  prevBand=band;
+}
+
+/* ---------- dibujo ---------- */
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function drawMap(){
+  const w=cv._w,h=cv._h,s=w/SW,X=x=>x*s,Y=y=>h-y*s;
+  cx.setTransform(cv._d,0,0,cv._d,0,0);cx.clearRect(0,0,w,h);
+  cx.imageSmoothingEnabled=false;cx.drawImage(heat,0,0,w,h);
+  cx.lineWidth=4;cx.strokeStyle="#1c1c1c";cx.lineCap="butt";
+  WALLS.forEach(a=>{cx.beginPath();cx.moveTo(X(a[0]),Y(a[1]));cx.lineTo(X(a[2]),Y(a[3]));cx.stroke()});
+  cx.font=`600 ${Math.max(10,s*.55)}px system-ui`;cx.textAlign="center";
+  const lab=(t,x,y)=>{const m=cx.measureText(t).width;cx.fillStyle="rgba(255,255,255,.85)";cx.fillRect(X(x)-m/2-3,Y(y)-s*.5,m+6,s*.75);cx.fillStyle="#222";cx.fillText(t,X(x),Y(y))};
+  lab("Aula 1",11,15.7);lab("Aula 2",21,15.7);lab("Patio",33,22);
+  // Starlink, paneles y enlace
+  cx.fillStyle="#1f3a5f";cx.fillRect(X(20),Y(19.6),5*s,1.6*s);lab("Paneles solares",22.5,20.6);
+  cx.setLineDash([5,4]);cx.lineWidth=1.5;cx.strokeStyle=(st===0&&!S.falla&&tx[0].on)?"#222":"#b3261e";
+  cx.beginPath();cx.moveTo(X(16),Y(18.6));cx.lineTo(X(tx[0].x),Y(tx[0].y));cx.stroke();cx.setLineDash([]);
+  cx.fillStyle=S.falla||st!==0?"#999":"#d9a528";cx.strokeStyle="#222";cx.lineWidth=1.5;star(X(16),Y(18.6),s*.9);lab("Antena Starlink",16,20.6);
+  // equipos
+  tx.forEach((t,i)=>{cx.fillStyle=t.on&&st===0?(i?"#e8621a":"#8b3a3a"):"#888";cx.strokeStyle="#111";cx.lineWidth=2;const r=s*.7;
+    cx.beginPath();if(i)cx.moveTo(X(t.x),Y(t.y)-r),cx.lineTo(X(t.x)+r,Y(t.y)+r*.8),cx.lineTo(X(t.x)-r,Y(t.y)+r*.8),cx.closePath();else cx.rect(X(t.x)-r*.8,Y(t.y)-r*.8,r*1.6,r*1.6);
+    cx.fill();cx.stroke();lab(t.n+(t.on?"":" (apagado)"),t.x+(t.x>30?-3.2:3.2),t.y+1.5)});
+  devs.forEach((d,i)=>{cx.fillStyle=COL[cls(devR[i])];cx.beginPath();cx.arc(X(d.x),Y(d.y),s*.38,0,7);cx.fill();cx.lineWidth=1.2;cx.strokeStyle="#111";cx.stroke()});
+  if(probe){const v=st===0?rssi(probe.x,probe.y):-120,px=X(probe.x),py=Y(probe.y);cx.strokeStyle="#111";cx.lineWidth=2;cx.beginPath();cx.arc(px,py,s*.6,0,7);cx.moveTo(px-s,py);cx.lineTo(px+s,py);cx.moveTo(px,py-s);cx.lineTo(px,py+s);cx.stroke();
+    lab(v>-120?Math.round(v)+" dBm":"Sin señal",probe.x,probe.y+1.8)}
+  if(st!==0){cx.fillStyle="rgba(0,0,0,.55)";cx.fillRect(0,h/2-s*1.6,w,s*3.2);cx.fillStyle="#fff";cx.font=`700 ${s*1.1}px system-ui`;cx.fillText(st===2?"Sin energía: red caída":"Red apagada por horario",w/2,h/2+s*.4)}
+}
+function star(x,y,r){cx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,q=i%2?r*.45:r;cx[i?"lineTo":"moveTo"](x+q*Math.cos(a),y+q*Math.sin(a))}cx.closePath();cx.fill();cx.stroke()}
+function drawChart(){
+  const w=ch._w,h=ch._h,L=40,R=40,T=8,B=24,pw=w-L-R,ph=h-T-B;
+  cc.setTransform(ch._d,0,0,ch._d,0,0);cc.clearRect(0,0,w,h);
+  const t0=H-24,X=t=>L+(t-t0)/24*pw,mx=Math.max(S.wp*.75/1000,.4)*1.1,Yk=v=>T+ph-v/mx*ph,Ys=v=>T+ph-v/100*ph;
+  const ink=css("--muted"),line=css("--line");
+  cc.strokeStyle=line;cc.fillStyle=ink;cc.font="11px system-ui";cc.lineWidth=1;cc.textAlign="center";
+  for(let t=Math.ceil(t0/3)*3;t<=H;t+=3){cc.beginPath();cc.moveTo(X(t),T);cc.lineTo(X(t),T+ph);cc.stroke();cc.fillText(String(((t%24)+24)%24),X(t),h-8)}
+  cc.textAlign="right";cc.fillText("kW",L-6,T+10);cc.fillText("0",L-6,T+ph);cc.fillText(mx.toFixed(1),L-6,T+22);
+  cc.textAlign="left";cc.fillText("100 %",w-R+6,T+10);cc.fillText("0",w-R+6,T+ph);
+  hist.forEach(p=>{if(p.st){cc.fillStyle=p.st===2?"rgba(179,38,30,.22)":"rgba(136,136,136,.18)";cc.fillRect(X(p.t),T,pw*.1/24+1,ph)}});
+  if(hist.length>1){
+    cc.beginPath();cc.moveTo(X(hist[0].t),Yk(0));hist.forEach(p=>cc.lineTo(X(p.t),Yk(p.sol/1000)));cc.lineTo(X(hist[hist.length-1].t),Yk(0));cc.fillStyle="rgba(217,165,40,.5)";cc.fill();
+    const ln=(f,col,Yf)=>{cc.beginPath();hist.forEach((p,i)=>cc[i?"lineTo":"moveTo"](X(p.t),Yf(f(p))));cc.strokeStyle=col;cc.lineWidth=2;cc.stroke()};
+    ln(p=>p.load/1000,"#8b3a3a",Yk);ln(p=>p.soc,"#2f7d4f",Ys)}
+  cc.strokeStyle=css("--ink");cc.lineWidth=1;cc.setLineDash([4,3]);cc.beginPath();cc.moveTo(X(H),T);cc.lineTo(X(H),T+ph);cc.stroke();cc.setLineDash([])
+}
+let lastUI=0;
+function ui(){
+  const m={0:S.falla?["Wi-Fi activo, sin internet (falla de Starlink)","warn"]:["Red en servicio","ok"],1:["Red apagada por horario","warn"],2:["Sin energía: red caída","bad"]}[st];
+  $("stTxt").textContent=m[0];$("stTxt").className=m[1];$("dot").style.background=css("--"+m[1]);
+  $("clock").textContent=`Día ${Math.floor(H/24)+1}, ${hhmm(H)} (hora simulada)`;
+  $("o_h").textContent=hhmm(H);if(document.activeElement!==$("s_h"))$("s_h").value=((H%24)+24)%24;
+  const net=sol-load,aut=net<0&&load>0?E/(load-sol):null,inet=st===0&&!S.falla&&conn?100/conn:0;
+  const col=soc<10?"var(--bad)":soc<20?"var(--warn)":"var(--ok)";
+  $("kv").innerHTML=`<dt>Internet por dispositivo</dt><dd>${inet?inet.toFixed(1)+" Mbps":"Sin internet"}</dd>
+  <dt>Dispositivos conectados</dt><dd>${conn} de ${devs.length}</dd>
+  <dt>Cobertura en aulas</dt><dd>${covIn.toFixed(0)} %</dd>
+  <dt>Cobertura en el patio</dt><dd>${covOut.toFixed(0)} %</dd>
+  <dt>Generación solar</dt><dd>${Math.round(sol)} W</dd>
+  <dt>Consumo</dt><dd>${Math.round(load)} W</dd>
+  <dt>Batería</dt><dd>${soc.toFixed(0)} %${aut!==null?` · autonomía ${aut.toFixed(1)} h`:net>0?" · cargando":""}</dd>
+  <div class="bar"><b style="width:${soc}%;background:${col}"></b></div>`;
+}
+let last=performance.now();
+function frame(now){
+  const dt=Math.min((now-last)/1000,.1);last=now;
+  const dh=S.run?dt*S.speed:0;H+=dh;power(dh);
+  if(S.run)devs.forEach(d=>{d.x=Math.min(d.z[1],Math.max(d.z[0],d.x+rnd(-1,1)*dt*2.5));d.y=Math.min(d.z[3],Math.max(d.z[2],d.y+rnd(-1,1)*dt*2.5))});
+  compute();sample();drawMap();drawChart();
+  if(now-lastUI>200){lastUI=now;ui()}
+  requestAnimationFrame(frame)
+}
+fit(cv);fit(ch);renderLog();log("Simulación iniciada: sede con Starlink, energía solar y Wi-Fi","ok");requestAnimationFrame(frame);
+</script>
+</body>
+</html>
